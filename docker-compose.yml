@@ -1,12 +1,15 @@
 services:
   telegram2foam:
     build: .
+    container_name: t2f
     environment:
       TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}"
       LOCAL_TIMEZONE: "${LOCAL_TIMEZONE:-Europe/Berlin}"
-      REPO_ROOT: "${REPO_ROOT:-/notes}"
-      DAILY_NOTES_DIR: "${DAILY_NOTES_DIR:-notes}"
+      REPO_ROOT: "${REPO_ROOT:-/app/repo}"
+      GIT_USER_NAME: "${GIT_USER_NAME}"
+      GIT_USER_EMAIL: "${GIT_USER_EMAIL}"
+      POLL_INTERVAL: "${POLL_INTERVAL:-10}"
     volumes:
-      - ${NOTES_PATH:-/path/to/foam-repo}:/notes
-      - ${SSH_DIR:-~/.ssh}:/root/.ssh:ro
+      - ${REPO_PATH:-/srv/foam/repo}:/app/repo
+      - ${SSH_DIR:-/srv/foam/.ssh}:/root/.ssh:ro
     restart: unless-stopped

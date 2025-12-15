@@ -4,7 +4,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_PROJECT_ENVIRONMENT=/opt/app/.venv
 
-WORKDIR /app
+# Application code lives in /app/src; repo will be mounted at /app/repo.
+WORKDIR /app/src
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git ca-certificates openssh-client curl \
