@@ -8,7 +8,8 @@ from typing import Optional
 from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
-from telegram import Update
+from telegram import Bot, ReactionTypeEmoji, Update
+from telegram.error import BadRequest
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 
 logging.basicConfig(
@@ -149,12 +150,40 @@ def ensure_git_identity(config: BotConfig) -> bool:
     return ok_name and ok_email
 
 
+async def react_to_outcome(message, bot: Bot, success: bool) -> None:
+    """Attach a reaction to the processed message so the user sees the result."""
+    if not message:
+        return
+
+    emoji = "👍" if success else "⚠️"
+    fallback_text = "Saved ✅" if success else "Failed ⚠️"
+    try:
+        await bot.set_message_reaction(
+            chat_id=message.chat_id,
+            message_id=message.message_id,
+            reaction=[ReactionTypeEmoji(emoji=emoji)],
+        )
+    except BadRequest as exc:
+        logger.warning("Reaction failed (%s), sending fallback message", exc)
+        try:
+            await bot.send_message(
+                chat_id=message.chat_id,
+                text=fallback_text,
+                reply_to_message_id=message.message_id,
+            )
+        except Exception:
+            logger.exception("Failed to send fallback status message")
+    except Exception:
+        logger.exception("Failed to set reaction")
+
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     message = update.effective_message
     if not message or not message.text:
         return
 
     config: BotConfig = context.bot_data["config"]
+    success = False
 
     local_time = message.date.astimezone(config.local_tz)
     note_path = (
@@ -193,10 +222,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         if not run_git(config.repo_root, "commit", "-m", commit_msg):
             return
 
-        if not run_git(config.repo_root, "push"):
+        success = run_git(config.repo_root, "push")
+        if not success:
             logger.error("git push failed")
     except Exception:
         logger.exception("Failed to process message")
+    finally:
+        await react_to_outcome(message, context.bot, success)
 
 
 def main() -> None:
